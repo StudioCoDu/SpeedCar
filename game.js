@@ -508,6 +508,7 @@ let serverSaveAvailable = true;
 let currentLanguage = "en";
 let authUser = null;
 let remoteReady = true;
+let authSyncPromise = Promise.resolve();
 
 function t(key) {
   return translations[currentLanguage][key] ?? translations.en[key] ?? key;
@@ -525,6 +526,33 @@ function setAuthStatus(message, tone = "") {
   authStatusEl.textContent = message;
   authStatusEl.classList.toggle("is-error", tone === "error");
   authStatusEl.classList.toggle("is-success", tone === "success");
+}
+
+async function syncAuthSession(session, fallbackName = "") {
+  authUser = session?.user || null;
+  signOutButton.hidden = !authUser;
+
+  if (authUser) {
+    authEmailInput.value = authUser.email || authEmailInput.value;
+    await ensureRemoteProfile(fallbackName || playerNameInput.value);
+    await loadRemoteLeaderboard();
+    setAuthStatus(`${t("authSignedIn")} ${currentPlayer}`, "success");
+    return;
+  }
+
+  await loadRemoteLeaderboard();
+  setAuthStatus(remoteReady ? t("authSignedOut") : t("authSharedError"), remoteReady ? "" : "error");
+}
+
+function queueAuthSync(session, fallbackName = "") {
+  authSyncPromise = authSyncPromise
+    .catch(() => {})
+    .then(() => syncAuthSession(session, fallbackName))
+    .catch((error) => {
+      setAuthStatus(error.message || String(error), "error");
+    });
+
+  return authSyncPromise;
 }
 
 function openSaveDb() {
@@ -1792,14 +1820,7 @@ signUpButton.addEventListener("click", async () => {
     return;
   }
 
-  authUser = data.user;
-  try {
-    await ensureRemoteProfile(username);
-    await loadRemoteLeaderboard();
-    setAuthStatus(`${t("authSignedIn")} ${currentPlayer}`, "success");
-  } catch (profileError) {
-    setAuthStatus(profileError.message || String(profileError), "error");
-  }
+  await queueAuthSync(data.session, username);
 });
 signInButton.addEventListener("click", async () => {
   const email = authEmailInput.value.trim();
@@ -1825,14 +1846,7 @@ signInButton.addEventListener("click", async () => {
     return;
   }
 
-  authUser = data.user;
-  try {
-    await ensureRemoteProfile(playerNameInput.value);
-    await loadRemoteLeaderboard();
-    setAuthStatus(`${t("authSignedIn")} ${currentPlayer}`, "success");
-  } catch (profileError) {
-    setAuthStatus(profileError.message || String(profileError), "error");
-  }
+  await queueAuthSync(data.session, playerNameInput.value);
 });
 signOutButton.addEventListener("click", async () => {
   const { error } = await supabase.auth.signOut();
@@ -1852,23 +1866,8 @@ highScores = loadHighScores();
 applyLanguage(getSavedLanguage(), false);
 setCurrentPlayer(getSavedPlayerName(), false);
 setAuthStatus(t("authLoading"));
-supabase.auth.onAuthStateChange(async (_event, session) => {
-  authUser = session?.user || null;
-  signOutButton.hidden = !authUser;
-
-  try {
-    if (authUser) {
-      authEmailInput.value = authUser.email || authEmailInput.value;
-      await ensureRemoteProfile(playerNameInput.value);
-      await loadRemoteLeaderboard();
-      setAuthStatus(`${t("authSignedIn")} ${currentPlayer}`, "success");
-    } else {
-      await loadRemoteLeaderboard();
-      setAuthStatus(remoteReady ? t("authSignedOut") : t("authSharedError"));
-    }
-  } catch (error) {
-    setAuthStatus(error.message || String(error), "error");
-  }
+supabase.auth.onAuthStateChange((_event, session) => {
+  queueAuthSync(session, playerNameInput.value);
 });
 
 supabase.auth.getSession().then(async ({ data, error }) => {
@@ -1876,22 +1875,6 @@ supabase.auth.getSession().then(async ({ data, error }) => {
     setAuthStatus(error.message, "error");
     return;
   }
-
-  authUser = data.session?.user || null;
-  signOutButton.hidden = !authUser;
-
-  try {
-    if (authUser) {
-      authEmailInput.value = authUser.email || "";
-      await ensureRemoteProfile(playerNameInput.value);
-    }
-    await loadRemoteLeaderboard();
-    setAuthStatus(
-      authUser ? `${t("authSignedIn")} ${currentPlayer}` : remoteReady ? t("authRemoteReady") : t("authSharedError"),
-      authUser ? "success" : remoteReady ? "success" : "error"
-    );
-  } catch (sessionError) {
-    setAuthStatus(sessionError.message || String(sessionError), "error");
-  }
+  await queueAuthSync(data.session, playerNameInput.value);
 });
 resetGame();
