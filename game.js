@@ -64,6 +64,8 @@ const CLOCK_MIN_DELAY = 7;
 const CLOCK_RANDOM_DELAY = 7;
 const SLOW_MOTION_DURATION = 5;
 const SLOW_MOTION_FACTOR = 0.62;
+const TRAFFIC_ENTRY_ZONE = 260;
+const TRAFFIC_LANE_SAFE_GAP = 320;
 const SUPABASE_URL = "https://amrgkiicmvaamloutomd.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_bNXZ4iycEszTBEcDhjzt1A_nEzd7I3F";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
@@ -543,10 +545,12 @@ function updatePlayLayout() {
 
 async function syncAuthSession(session, fallbackName = "") {
   authUser = session?.user || null;
+  document.body.classList.toggle("signed-in", !!authUser);
   signOutButton.hidden = !authUser;
 
   if (authUser) {
     authEmailInput.value = authUser.email || authEmailInput.value;
+    authPasswordInput.value = "";
     await ensureRemoteProfile(fallbackName || playerNameInput.value);
     await loadRemoteLeaderboard();
     setAuthStatus(`${t("authSignedIn")} ${currentPlayer}`, "success");
@@ -863,10 +867,11 @@ async function updateRemoteUsername() {
   return true;
 }
 
-async function saveRemoteScoreIfBest(finalScore) {
+async function saveRemoteScoreIfBest(finalScore, previousBest = 0) {
   if (!authUser || !remoteReady) return;
 
-  const currentBest = highScores[currentPlayer] || 0;
+  const profile = await fetchMyProfile();
+  const currentBest = Math.max(Number(profile?.best_score) || 0, previousBest);
   if (finalScore <= currentBest) return;
 
   const { error } = await supabase
@@ -885,17 +890,19 @@ async function saveRemoteScoreIfBest(finalScore) {
 
   highScores[currentPlayer] = finalScore;
   updatePersonalBest();
-  updateLeaderboard();
+  await loadRemoteLeaderboard();
 }
 
-function saveScoreIfBest() {
+function saveScoreIfBest(syncRemote = false) {
   const finalScore = Math.floor(score);
   const previousBest = highScores[currentPlayer] || 0;
 
   if (finalScore > previousBest) {
     highScores[currentPlayer] = finalScore;
     saveHighScores();
-    saveRemoteScoreIfBest(finalScore);
+    if (syncRemote) {
+      void saveRemoteScoreIfBest(finalScore, previousBest);
+    }
     updatePersonalBest();
     updateLeaderboard();
   }
@@ -1482,12 +1489,18 @@ function drawScene(currentSpeed = speed, delta = 0) {
 }
 
 function spawnTraffic() {
-  const takenLanes = traffic
-    .filter((car) => car.y < 120)
-    .map((car) => car.lane);
+  const entryCars = traffic.filter((car) => car.y > -car.height && car.y < TRAFFIC_ENTRY_ZONE);
+  const blockedLanes = new Set(entryCars.map((car) => car.lane));
+
+  if (blockedLanes.size >= lanes.length - 1) return;
+
   const openLanes = lanes
     .map((x, index) => ({ x, index }))
-    .filter((lane) => !takenLanes.includes(lane.index));
+    .filter((lane) => {
+      if (blockedLanes.has(lane.index)) return false;
+
+      return traffic.every((car) => car.lane !== lane.index || car.y >= TRAFFIC_LANE_SAFE_GAP);
+    });
 
   if (openLanes.length === 0) return;
 
@@ -1529,7 +1542,7 @@ function finishGame() {
   updatePlayLayout();
   shake = 16;
   createCrashSparks();
-  newBestThisRun = saveScoreIfBest() || newBestThisRun;
+  newBestThisRun = saveScoreIfBest(true) || newBestThisRun;
   if (newBestThisRun) {
     sparks.push({
       x: canvas.width / 2,
@@ -1686,7 +1699,7 @@ function update(now) {
 
     score += delta * 12;
     updateSpeedFromScore();
-    saveScoreIfBest();
+    saveScoreIfBest(false);
     scoreEl.textContent = Math.floor(score).toString();
   }
 

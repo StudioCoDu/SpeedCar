@@ -102,6 +102,26 @@ button.is-low {
   grid-column: 1 / -1;
 }
 
+body.signed-in #authEmail,
+body.signed-in #authPassword,
+body.signed-in #togglePasswordButton,
+body.signed-in #signInButton,
+body.signed-in #signUpButton {
+  display: none;
+}
+
+body.signed-in .auth-panel {
+  grid-template-columns: auto 1fr;
+}
+
+body.signed-in #signOutButton {
+  grid-column: 1;
+}
+
+body.signed-in .auth-status {
+  grid-column: 2;
+}
+
 .auth-panel {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
