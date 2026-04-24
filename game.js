@@ -518,6 +518,7 @@ let currentLanguage = "en";
 let authUser = null;
 let remoteReady = true;
 let authSyncPromise = Promise.resolve();
+let pendingRemoteScoreSave = Promise.resolve();
 
 function t(key) {
   return translations[currentLanguage][key] ?? translations.en[key] ?? key;
@@ -815,13 +816,13 @@ async function loadRemoteLeaderboard() {
   updateLeaderboard();
 }
 
-async function fetchMyProfile() {
-  if (!authUser) return null;
+async function fetchMyProfile(userId = authUser?.id) {
+  if (!userId) return null;
 
   const { data, error } = await supabase
     .from("player_profiles")
     .select("user_id,username,best_score,email")
-    .eq("user_id", authUser.id)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (error) throw error;
@@ -871,7 +872,10 @@ async function updateRemoteUsername() {
 async function saveRemoteScoreIfBest(finalScore, previousBest = 0) {
   if (!authUser || !remoteReady) return;
 
-  const profile = await fetchMyProfile();
+  const sessionUser = authUser;
+  const playerName = cleanPlayerName(currentPlayer);
+
+  const profile = await fetchMyProfile(sessionUser.id);
   const currentBest = Math.max(Number(profile?.best_score) || 0, previousBest);
   if (finalScore <= currentBest) return;
 
@@ -879,19 +883,30 @@ async function saveRemoteScoreIfBest(finalScore, previousBest = 0) {
     .from("player_profiles")
     .update({
       best_score: finalScore,
-      username: currentPlayer,
-      email: authUser.email || null,
+      username: playerName,
+      email: sessionUser.email || null,
     })
-    .eq("user_id", authUser.id);
+    .eq("user_id", sessionUser.id);
 
   if (error) {
     setAuthStatus(error.message, "error");
     return;
   }
 
-  highScores[currentPlayer] = finalScore;
+  highScores[playerName] = finalScore;
   updatePersonalBest();
   await loadRemoteLeaderboard();
+}
+
+function queueRemoteScoreSave(finalScore, previousBest = 0) {
+  pendingRemoteScoreSave = pendingRemoteScoreSave
+    .catch(() => {})
+    .then(() => saveRemoteScoreIfBest(finalScore, previousBest))
+    .catch((error) => {
+      setAuthStatus(error.message || String(error), "error");
+    });
+
+  return pendingRemoteScoreSave;
 }
 
 function saveScoreIfBest(syncRemote = false) {
@@ -902,7 +917,7 @@ function saveScoreIfBest(syncRemote = false) {
     highScores[currentPlayer] = finalScore;
     saveHighScores();
     if (syncRemote) {
-      void saveRemoteScoreIfBest(finalScore, previousBest);
+      void queueRemoteScoreSave(finalScore, previousBest);
     }
     updatePersonalBest();
     updateLeaderboard();
@@ -1838,6 +1853,7 @@ signUpButton.addEventListener("click", async () => {
 
   setAuthStatus(t("authLoading"));
   if (authUser) {
+    await pendingRemoteScoreSave.catch(() => {});
     await supabase.auth.signOut();
   }
   const { data, error } = await supabase.auth.signUp({
@@ -1876,6 +1892,7 @@ signInButton.addEventListener("click", async () => {
 
   setAuthStatus(t("authLoading"));
   if (authUser) {
+    await pendingRemoteScoreSave.catch(() => {});
     await supabase.auth.signOut();
   }
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -1891,6 +1908,7 @@ signInButton.addEventListener("click", async () => {
   await queueAuthSync(data.session, playerNameInput.value);
 });
 signOutButton.addEventListener("click", async () => {
+  await pendingRemoteScoreSave.catch(() => {});
   const { error } = await supabase.auth.signOut();
   if (error) {
     setAuthStatus(error.message, "error");
