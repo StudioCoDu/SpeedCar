@@ -537,6 +537,10 @@ function setAuthStatus(message, tone = "") {
   authStatusEl.classList.toggle("is-success", tone === "success");
 }
 
+function updatePlayLayout() {
+  document.body.classList.toggle("playing", !gameOver);
+}
+
 async function syncAuthSession(session, fallbackName = "") {
   authUser = session?.user || null;
   signOutButton.hidden = !authUser;
@@ -1007,6 +1011,7 @@ function resetGame() {
   score = 0;
   speed = BASE_SPEED;
   gameOver = false;
+  updatePlayLayout();
   lastTime = performance.now();
   spawnTimer = 0;
   coinTimer = 1.6;
@@ -1521,6 +1526,7 @@ function rectanglesOverlap(a, b) {
 
 function finishGame() {
   gameOver = true;
+  updatePlayLayout();
   shake = 16;
   createCrashSparks();
   newBestThisRun = saveScoreIfBest() || newBestThisRun;
