@@ -522,6 +522,10 @@ function getAuthRedirectUrl() {
   return "http://127.0.0.1:4173";
 }
 
+function normalizeEmail(value) {
+  return value.trim().toLowerCase();
+}
+
 function setAuthStatus(message, tone = "") {
   authStatusEl.textContent = message;
   authStatusEl.classList.toggle("is-error", tone === "error");
@@ -1783,7 +1787,7 @@ languageSelect.addEventListener("change", () => {
   applyLanguage(languageSelect.value);
 });
 signUpButton.addEventListener("click", async () => {
-  const email = authEmailInput.value.trim();
+  const email = normalizeEmail(authEmailInput.value);
   const password = authPasswordInput.value.trim();
   const username = cleanPlayerName(playerNameInput.value);
 
@@ -1801,6 +1805,9 @@ signUpButton.addEventListener("click", async () => {
   }
 
   setAuthStatus(t("authLoading"));
+  if (authUser) {
+    await supabase.auth.signOut();
+  }
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -1823,7 +1830,7 @@ signUpButton.addEventListener("click", async () => {
   await queueAuthSync(data.session, username);
 });
 signInButton.addEventListener("click", async () => {
-  const email = authEmailInput.value.trim();
+  const email = normalizeEmail(authEmailInput.value);
   const password = authPasswordInput.value.trim();
 
   if (!email) {
@@ -1836,6 +1843,9 @@ signInButton.addEventListener("click", async () => {
   }
 
   setAuthStatus(t("authLoading"));
+  if (authUser) {
+    await supabase.auth.signOut();
+  }
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
