@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">speed car</string>
+    <string name="title_activity_main">speed car</string>
+    <string name="package_name">com.ofek.race</string>
+    <string name="custom_url_scheme">com.ofek.race</string>
+</resources>

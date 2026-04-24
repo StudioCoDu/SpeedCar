@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+    <title>speed car</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="game-shell">
+      <section class="auth-panel" id="authPanel" aria-label="Account">
+        <input id="authEmail" type="email" autocomplete="username" placeholder="Email">
+        <input id="authPassword" type="password" autocomplete="current-password" placeholder="Password">
+        <button id="signInButton" type="button">Sign In</button>
+        <button id="signUpButton" type="button">Create User</button>
+        <button id="signOutButton" type="button" hidden>Sign Out</button>
+        <div class="auth-status" id="authStatus">Not signed in</div>
+      </section>
+
+      <section class="player-panel" id="playerPanel" aria-label="Player and best score">
+        <label id="playerNameLabel" for="playerName">Player</label>
+        <input id="playerName" type="text" maxlength="14" autocomplete="off" placeholder="Your name">
+        <button id="savePlayer" type="button">Save</button>
+        <div>
+          <span id="personalBestLabel">My Best</span>
+          <strong id="personalBest">0</strong>
+        </div>
+        <div class="language-picker">
+          <label id="languageLabel" for="languageSelect">Language</label>
+          <select id="languageSelect">
+            <option value="en">English</option>
+            <option value="he">עברית</option>
+            <option value="ar">العربية</option>
+            <option value="es">Español</option>
+            <option value="ja">日本語</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+            <option value="pt">Português</option>
+            <option value="zh">中文</option>
+            <option value="ru">Русский</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="hud" id="hudPanel" aria-label="Score board">
+        <div>
+          <span id="scoreLabel">Score</span>
+          <strong id="score">0</strong>
+        </div>
+        <div>
+          <span id="speedLabel">Speed</span>
+          <strong id="speed">1</strong>
+        </div>
+        <div>
+          <span id="brakeLabel">Brake</span>
+          <strong id="brakePower">100%</strong>
+        </div>
+        <div>
+          <span id="coinsLabel">Coins</span>
+          <strong id="coins">0</strong>
+        </div>
+        <div>
+          <span id="shieldLabel">Shield</span>
+          <strong id="shieldStatus">None</strong>
+        </div>
+        <button id="restart" type="button">New Game</button>
+      </section>
+
+      <canvas id="game" width="480" height="720" aria-label="Racing game"></canvas>
+
+      <section class="controls" id="controlsPanel" aria-label="Game controls">
+        <button id="left" type="button">Left</button>
+        <button id="brake" type="button">Brake</button>
+        <button id="right" type="button">Right</button>
+      </section>
+
+      <section class="leaderboard" id="leaderboardPanel" aria-label="Leaderboard">
+        <h2 id="leaderboardTitle">Leaderboard</h2>
+        <ol id="leaderboard"></ol>
+      </section>
+    </main>
+
+    <button id="mobileScoresButton" class="mobile-scores-button" type="button">Scores</button>
+
+    <div id="mobileScoresModal" class="mobile-scores-modal" hidden>
+      <section class="mobile-scores-sheet" id="mobileScoresSheet" aria-label="Leaderboard on phone">
+        <header>
+          <h2 id="mobileLeaderboardTitle">Leaderboard</h2>
+          <button id="closeScores" type="button">Close</button>
+        </header>
+        <ol id="mobileLeaderboard"></ol>
+      </section>
+    </div>
+
+    <script type="module" src="game.js"></script>
+  </body>
+</html>
