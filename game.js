@@ -23,6 +23,7 @@ const languageSelect = document.querySelector("#languageSelect");
 const authPanel = document.querySelector("#authPanel");
 const authEmailInput = document.querySelector("#authEmail");
 const authPasswordInput = document.querySelector("#authPassword");
+const togglePasswordButton = document.querySelector("#togglePasswordButton");
 const signInButton = document.querySelector("#signInButton");
 const signUpButton = document.querySelector("#signUpButton");
 const signOutButton = document.querySelector("#signOutButton");
@@ -115,6 +116,8 @@ const translations = {
     signIn: "Sign In",
     signUp: "Create User",
     signOut: "Sign Out",
+    showPassword: "Show",
+    hidePassword: "Hide",
     authSignedOut: "Not signed in",
     authSignedIn: "Signed in as",
     authCheckEmail: "Check your email to finish sign up",
@@ -168,6 +171,8 @@ const translations = {
     signIn: "התחבר",
     signUp: "צור משתמש",
     signOut: "התנתק",
+    showPassword: "הצג",
+    hidePassword: "הסתר",
     authSignedOut: "לא מחובר",
     authSignedIn: "מחובר בתור",
     authCheckEmail: "בדוק את האימייל כדי לסיים הרשמה",
@@ -937,6 +942,7 @@ function applyLanguage(language, shouldSave = true) {
   playerNameInput.placeholder = copy.playerPlaceholder;
   authEmailInput.placeholder = copy.email;
   authPasswordInput.placeholder = copy.password;
+  togglePasswordButton.textContent = authPasswordInput.type === "password" ? copy.showPassword : copy.hidePassword;
   signInButton.textContent = copy.signIn;
   signUpButton.textContent = copy.signUp;
   signOutButton.textContent = copy.signOut;
@@ -1785,6 +1791,10 @@ playerNameInput.addEventListener("blur", () => {
 });
 languageSelect.addEventListener("change", () => {
   applyLanguage(languageSelect.value);
+});
+togglePasswordButton.addEventListener("click", () => {
+  authPasswordInput.type = authPasswordInput.type === "password" ? "text" : "password";
+  togglePasswordButton.textContent = authPasswordInput.type === "password" ? t("showPassword") : t("hidePassword");
 });
 signUpButton.addEventListener("click", async () => {
   const email = normalizeEmail(authEmailInput.value);

@@ -114,6 +114,7 @@ button.is-low {
   grid-column: 3 / 5;
 }
 
+#togglePasswordButton,
 #signInButton,
 #signUpButton,
 #signOutButton,
@@ -121,20 +122,24 @@ button.is-low {
   min-width: 0;
 }
 
-#signInButton {
+#togglePasswordButton {
   grid-column: 1;
 }
 
-#signUpButton {
+#signInButton {
   grid-column: 2;
 }
 
-#signOutButton {
+#signUpButton {
   grid-column: 3;
 }
 
-.auth-status {
+#signOutButton {
   grid-column: 4;
+}
+
+.auth-status {
+  grid-column: 1 / -1;
 }
 
 .auth-status {
@@ -297,6 +302,7 @@ button.is-low {
 
   #authEmail,
   #authPassword,
+  #togglePasswordButton,
   #signInButton,
   #signUpButton,
   #signOutButton,
