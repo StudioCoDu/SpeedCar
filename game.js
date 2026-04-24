@@ -781,11 +781,26 @@ async function loadRemoteLeaderboard() {
     return;
   }
 
-  highScores = {};
+  const mergedScores = { ...(highScores || {}) };
   data.forEach((entry) => {
     const name = cleanPlayerName(entry.username || "");
-    highScores[name] = Math.max(highScores[name] || 0, Number(entry.best_score) || 0);
+    mergedScores[name] = Math.max(mergedScores[name] || 0, Number(entry.best_score) || 0);
   });
+
+  if (authUser) {
+    const myProfile = await fetchMyProfile();
+    if (myProfile?.username) {
+      const myName = cleanPlayerName(myProfile.username);
+      mergedScores[myName] = Math.max(mergedScores[myName] || 0, Number(myProfile.best_score) || 0);
+      if (currentPlayer !== myName) {
+        currentPlayer = myName;
+        playerNameInput.value = currentPlayer;
+      }
+    }
+  }
+
+  highScores = mergedScores;
+  saveHighScores();
   updatePersonalBest();
   updateLeaderboard();
 }
