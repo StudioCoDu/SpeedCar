@@ -130,6 +130,7 @@ const translations = {
     authLoading: "Connecting...",
     authRemoteReady: "Shared leaderboard is on",
     authSharedError: "Shared leaderboard is not ready yet",
+    authUsernameLocked: "Account name is locked while signed in",
   },
   he: {
     title: "speed car",
@@ -185,6 +186,7 @@ const translations = {
     authLoading: "מתחבר...",
     authRemoteReady: "לוח השיאים המשותף פעיל",
     authSharedError: "לוח השיאים המשותף עוד לא מוכן",
+    authUsernameLocked: "שם החשבון קבוע בזמן שמחוברים",
   },
   ar: {
     title: "speed car",
@@ -543,10 +545,18 @@ function updatePlayLayout() {
   document.body.classList.toggle("playing", !gameOver);
 }
 
+function updatePlayerLockState() {
+  const locked = !!authUser;
+  playerNameInput.readOnly = locked;
+  playerNameInput.classList.toggle("is-locked", locked);
+  savePlayerButton.hidden = locked;
+}
+
 async function syncAuthSession(session, fallbackName = "") {
   authUser = session?.user || null;
   document.body.classList.toggle("signed-in", !!authUser);
   signOutButton.hidden = !authUser;
+  updatePlayerLockState();
 
   if (authUser) {
     authEmailInput.value = authUser.email || authEmailInput.value;
@@ -854,32 +864,8 @@ async function ensureRemoteProfile(preferredName = "") {
 
 async function updateRemoteUsername() {
   if (!authUser) return false;
-
-  const username = cleanPlayerName(playerNameInput.value);
-  if (!username) {
-    setAuthStatus(t("authNeedUsername"), "error");
-    return false;
-  }
-
-  const profile = await fetchMyProfile();
-  const { error } = await supabase
-    .from("player_profiles")
-    .upsert(
-      {
-        user_id: authUser.id,
-        email: authUser.email || null,
-        username,
-        best_score: profile?.best_score || highScores[currentPlayer] || 0,
-      },
-      { onConflict: "user_id" }
-    );
-
-  if (error) throw error;
-
-  setCurrentPlayer(username);
-  await loadRemoteLeaderboard();
-  setAuthStatus(t("authUsernameSaved"), "success");
-  return true;
+  setAuthStatus(t("authUsernameLocked"), "error");
+  return false;
 }
 
 async function saveRemoteScoreIfBest(finalScore, previousBest = 0) {
@@ -1815,12 +1801,14 @@ savePlayerButton.addEventListener("click", async () => {
   }
 });
 playerNameInput.addEventListener("keydown", (event) => {
+  if (authUser) return;
   if (event.key === "Enter") {
     setCurrentPlayer(playerNameInput.value);
     playerNameInput.blur();
   }
 });
 playerNameInput.addEventListener("blur", () => {
+  if (authUser) return;
   setCurrentPlayer(playerNameInput.value);
 });
 languageSelect.addEventListener("change", () => {

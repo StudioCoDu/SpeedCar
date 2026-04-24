@@ -284,6 +284,11 @@ body.signed-in .auth-status {
   min-width: 0;
 }
 
+#playerName.is-locked {
+  opacity: 0.84;
+  cursor: default;
+}
+
 #savePlayer {
   min-width: 120px;
 }
