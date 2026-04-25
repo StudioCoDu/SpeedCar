@@ -67,6 +67,8 @@ const SLOW_MOTION_DURATION = 5;
 const SLOW_MOTION_FACTOR = 0.62;
 const TRAFFIC_ENTRY_ZONE = 260;
 const TRAFFIC_LANE_SAFE_GAP = 320;
+const TRAFFIC_CAR_WIDTH = 56;
+const TRAFFIC_CAR_HEIGHT = 76;
 const LEADERBOARD_REFRESH_MS = 4000;
 const SUPABASE_URL = "https://amrgkiicmvaamloutomd.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_bNXZ4iycEszTBEcDhjzt1A_nEzd7I3F";
@@ -500,6 +502,7 @@ let speed;
 let gameOver;
 let lastTime;
 let spawnTimer;
+let trafficSpawnCount;
 let coinTimer;
 let shieldTimer;
 let clockTimer;
@@ -1077,6 +1080,7 @@ function resetGame() {
   updatePlayLayout();
   lastTime = performance.now();
   spawnTimer = 0;
+  trafficSpawnCount = 0;
   coinTimer = 1.6;
   shieldTimer = SHIELD_MIN_DELAY + Math.random() * SHIELD_RANDOM_DELAY;
   clockTimer = CLOCK_MIN_DELAY + Math.random() * CLOCK_RANDOM_DELAY;
@@ -1561,13 +1565,17 @@ function spawnTraffic() {
 
   if (openLanes.length === 0) return;
 
-  const lane = openLanes[Math.floor(Math.random() * openLanes.length)];
+  trafficSpawnCount += 1;
+  const nearestPlayerLane = openLanes.reduce((best, lane) => {
+    return Math.abs(lane.x - player.x) < Math.abs(best.x - player.x) ? lane : best;
+  }, openLanes[0]);
+  const lane = trafficSpawnCount % 3 === 0 ? nearestPlayerLane : openLanes[Math.floor(Math.random() * openLanes.length)];
   const colors = ["#2fbf71", "#3772ff", "#f46036", "#a76df0", "#f3a712"];
   traffic.push({
     x: lane.x,
     y: -92,
-    width: 48,
-    height: 76,
+    width: TRAFFIC_CAR_WIDTH,
+    height: TRAFFIC_CAR_HEIGHT,
     lane: lane.index,
     color: colors[Math.floor(Math.random() * colors.length)],
   });
