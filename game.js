@@ -505,6 +505,7 @@ let shake;
 let animationFrameId;
 let currentPlayer;
 let highScores;
+let leaderboardScores;
 let newBestThisRun;
 let bestAtStart;
 let brakePower;
@@ -712,8 +713,8 @@ function updatePersonalBest() {
 }
 
 function updateLeaderboard() {
-  if (!highScores) return;
-  const leaders = Object.entries(highScores)
+  if (!leaderboardScores) return;
+  const leaders = Object.entries(leaderboardScores)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6);
 
@@ -792,7 +793,7 @@ async function loadRemoteLeaderboard() {
     return;
   }
 
-  const mergedScores = { ...(highScores || {}) };
+  const mergedScores = {};
   data.forEach((entry) => {
     const name = cleanPlayerName(entry.username || "");
     mergedScores[name] = Math.max(mergedScores[name] || 0, Number(entry.best_score) || 0);
@@ -810,8 +811,7 @@ async function loadRemoteLeaderboard() {
     }
   }
 
-  highScores = mergedScores;
-  saveHighScores();
+  leaderboardScores = mergedScores;
   updatePersonalBest();
   updateLeaderboard();
 }
@@ -876,7 +876,7 @@ async function saveRemoteScoreIfBest(finalScore, previousBest = 0) {
   const playerName = cleanPlayerName(currentPlayer);
 
   const profile = await fetchMyProfile(sessionUser.id);
-  const currentBest = Math.max(Number(profile?.best_score) || 0, previousBest);
+  const currentBest = Number(profile?.best_score) || 0;
   if (finalScore <= currentBest) return;
 
   const { error } = await supabase
@@ -1923,6 +1923,7 @@ holdButton(rightButton, "ArrowRight");
 holdButton(brakeButton, " ");
 
 highScores = loadHighScores();
+leaderboardScores = {};
 applyLanguage(getSavedLanguage(), false);
 setCurrentPlayer(getSavedPlayerName(), false);
 setAuthStatus(t("authLoading"));
