@@ -56,7 +56,8 @@ const POINTS_PER_SPEED_UP = 100;
 const API_SAVE_URL = location.protocol === "file:" ? "http://127.0.0.1:4173/api/save" : "/api/save";
 const MAX_BRAKE_POWER = 100;
 const BRAKE_DRAIN_PER_SECOND = 36;
-const BRAKE_RECHARGE_PER_SECOND = 14;
+const BRAKE_RECHARGE_PER_SECOND = 7;
+const BRAKE_RECHARGE_DELAY = 1.5;
 const COIN_POINTS = 25;
 const SHIELD_MIN_DELAY = 7;
 const SHIELD_RANDOM_DELAY = 7;
@@ -510,6 +511,7 @@ let leaderboardScores;
 let newBestThisRun;
 let bestAtStart;
 let brakePower;
+let brakeRechargeTimer;
 let coinsCollected;
 let shieldActive;
 let slowMotionTimer;
@@ -1080,6 +1082,7 @@ function resetGame() {
   clockTimer = CLOCK_MIN_DELAY + Math.random() * CLOCK_RANDOM_DELAY;
   shake = 0;
   brakePower = MAX_BRAKE_POWER;
+  brakeRechargeTimer = 0;
   coinsCollected = 0;
   shieldActive = false;
   slowMotionTimer = 0;
@@ -1639,6 +1642,9 @@ function update(now) {
 
     if (wantsBrake) {
       brakePower = Math.max(0, brakePower - BRAKE_DRAIN_PER_SECOND * delta);
+      brakeRechargeTimer = BRAKE_RECHARGE_DELAY;
+    } else if (brakeRechargeTimer > 0) {
+      brakeRechargeTimer = Math.max(0, brakeRechargeTimer - delta);
     } else {
       brakePower = Math.min(MAX_BRAKE_POWER, brakePower + BRAKE_RECHARGE_PER_SECOND * delta);
     }
