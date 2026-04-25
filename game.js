@@ -563,7 +563,12 @@ async function syncAuthSession(session, fallbackName = "") {
   if (authUser) {
     authEmailInput.value = authUser.email || authEmailInput.value;
     authPasswordInput.value = "";
-    await ensureRemoteProfile(fallbackName || playerNameInput.value);
+    const profile = await ensureRemoteProfile(fallbackName || playerNameInput.value);
+    const localBest = highScores[currentPlayer] || 0;
+    const remoteBest = Number(profile?.best_score) || 0;
+    if (localBest > remoteBest) {
+      await saveRemoteScoreIfBest(localBest, remoteBest);
+    }
     await loadRemoteLeaderboard();
     setAuthStatus(`${t("authSignedIn")} ${currentPlayer}`, "success");
     return;
@@ -709,6 +714,10 @@ function cleanPlayerName(name) {
 
 function updatePersonalBest() {
   if (!highScores || !currentPlayer) return;
+  if (!authUser) {
+    personalBestEl.textContent = "0";
+    return;
+  }
   personalBestEl.textContent = (highScores[currentPlayer] || 0).toString();
 }
 
@@ -881,12 +890,15 @@ async function saveRemoteScoreIfBest(finalScore, previousBest = 0) {
 
   const { error } = await supabase
     .from("player_profiles")
-    .update({
-      best_score: finalScore,
-      username: playerName,
-      email: sessionUser.email || null,
-    })
-    .eq("user_id", sessionUser.id);
+    .upsert(
+      {
+        user_id: sessionUser.id,
+        best_score: finalScore,
+        username: playerName,
+        email: sessionUser.email || null,
+      },
+      { onConflict: "user_id" }
+    );
 
   if (error) {
     setAuthStatus(error.message, "error");
@@ -910,20 +922,24 @@ function queueRemoteScoreSave(finalScore, previousBest = 0) {
 }
 
 function saveScoreIfBest(syncRemote = false) {
+  if (!authUser) return false;
+
   const finalScore = Math.floor(score);
   const previousBest = highScores[currentPlayer] || 0;
+  const isRunBest = finalScore > bestAtStart;
 
   if (finalScore > previousBest) {
     highScores[currentPlayer] = finalScore;
     saveHighScores();
-    if (syncRemote) {
-      void queueRemoteScoreSave(finalScore, previousBest);
-    }
     updatePersonalBest();
     updateLeaderboard();
   }
 
-  if (finalScore > bestAtStart) {
+  if (syncRemote && isRunBest) {
+    void queueRemoteScoreSave(finalScore, bestAtStart);
+  }
+
+  if (isRunBest) {
     newBestThisRun = true;
     return true;
   }
