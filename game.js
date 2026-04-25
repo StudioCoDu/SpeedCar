@@ -66,6 +66,7 @@ const SLOW_MOTION_DURATION = 5;
 const SLOW_MOTION_FACTOR = 0.62;
 const TRAFFIC_ENTRY_ZONE = 260;
 const TRAFFIC_LANE_SAFE_GAP = 320;
+const LEADERBOARD_REFRESH_MS = 4000;
 const SUPABASE_URL = "https://amrgkiicmvaamloutomd.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_bNXZ4iycEszTBEcDhjzt1A_nEzd7I3F";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
@@ -520,6 +521,7 @@ let authUser = null;
 let remoteReady = true;
 let authSyncPromise = Promise.resolve();
 let pendingRemoteScoreSave = Promise.resolve();
+let leaderboardRefreshPromise = Promise.resolve();
 
 function t(key) {
   return translations[currentLanguage][key] ?? translations.en[key] ?? key;
@@ -823,6 +825,17 @@ async function loadRemoteLeaderboard() {
   leaderboardScores = mergedScores;
   updatePersonalBest();
   updateLeaderboard();
+}
+
+function refreshRemoteLeaderboard() {
+  if (!remoteReady || document.visibilityState === "hidden") return leaderboardRefreshPromise;
+
+  leaderboardRefreshPromise = leaderboardRefreshPromise
+    .catch(() => {})
+    .then(() => loadRemoteLeaderboard())
+    .catch(() => {});
+
+  return leaderboardRefreshPromise;
 }
 
 async function fetchMyProfile(userId = authUser?.id) {
@@ -1816,8 +1829,14 @@ window.addEventListener("keyup", (event) => {
 
 window.addEventListener("beforeunload", saveGameData);
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") saveGameData();
+  if (document.visibilityState === "hidden") {
+    saveGameData();
+    return;
+  }
+
+  refreshRemoteLeaderboard();
 });
+window.addEventListener("focus", refreshRemoteLeaderboard);
 
 restartButton.addEventListener("click", resetGame);
 savePlayerButton.addEventListener("click", async () => {
@@ -1954,4 +1973,5 @@ supabase.auth.getSession().then(async ({ data, error }) => {
   }
   await queueAuthSync(data.session, playerNameInput.value);
 });
+setInterval(refreshRemoteLeaderboard, LEADERBOARD_REFRESH_MS);
 resetGame();
