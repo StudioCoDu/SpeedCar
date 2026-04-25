@@ -714,6 +714,14 @@ function cleanPlayerName(name) {
   return name.trim().replace(/\s+/g, " ").slice(0, 14) || t("defaultPlayer");
 }
 
+function getPublicTag(userId = "") {
+  return userId.replace(/-/g, "").slice(0, 4).toUpperCase() || "0000";
+}
+
+function formatLeaderboardName(username, userId) {
+  return `${cleanPlayerName(username)} #${getPublicTag(userId)}`;
+}
+
 function updatePersonalBest() {
   if (!highScores || !currentPlayer) return;
   if (!authUser) {
@@ -793,7 +801,7 @@ async function loadRemoteLeaderboard() {
 
   const { data, error } = await supabase
     .from("player_profiles")
-    .select("username,best_score")
+    .select("user_id,username,best_score")
     .order("best_score", { ascending: false })
     .order("updated_at", { ascending: false })
     .limit(20);
@@ -806,17 +814,18 @@ async function loadRemoteLeaderboard() {
 
   const mergedScores = {};
   data.forEach((entry) => {
-    const name = cleanPlayerName(entry.username || "");
+    const name = formatLeaderboardName(entry.username || "", entry.user_id || "");
     mergedScores[name] = Math.max(mergedScores[name] || 0, Number(entry.best_score) || 0);
   });
 
   if (authUser) {
     const myProfile = await fetchMyProfile();
     if (myProfile?.username) {
-      const myName = cleanPlayerName(myProfile.username);
+      const myPlayerName = cleanPlayerName(myProfile.username);
+      const myName = formatLeaderboardName(myProfile.username, myProfile.user_id);
       mergedScores[myName] = Math.max(mergedScores[myName] || 0, Number(myProfile.best_score) || 0);
-      if (currentPlayer !== myName) {
-        currentPlayer = myName;
+      if (currentPlayer !== myPlayerName) {
+        currentPlayer = myPlayerName;
         playerNameInput.value = currentPlayer;
       }
     }
@@ -1628,7 +1637,7 @@ function update(now) {
     shieldTimer -= delta;
     clockTimer -= delta;
 
-    if (braking) {
+    if (wantsBrake) {
       brakePower = Math.max(0, brakePower - BRAKE_DRAIN_PER_SECOND * delta);
     } else {
       brakePower = Math.min(MAX_BRAKE_POWER, brakePower + BRAKE_RECHARGE_PER_SECOND * delta);

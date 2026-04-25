@@ -2,12 +2,22 @@ create table if not exists public.player_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   email text,
   username text not null,
+  public_tag text,
   best_score integer not null default 0 check (best_score >= 0),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
-create unique index if not exists player_profiles_username_lower_idx
+alter table public.player_profiles
+  add column if not exists public_tag text;
+
+update public.player_profiles
+set public_tag = upper(substr(replace(user_id::text, '-', ''), 1, 4))
+where public_tag is null or public_tag = '';
+
+drop index if exists public.player_profiles_username_lower_idx;
+
+create index if not exists player_profiles_username_lower_idx
   on public.player_profiles (lower(username));
 
 create index if not exists player_profiles_best_score_idx
