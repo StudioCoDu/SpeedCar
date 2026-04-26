@@ -3,7 +3,7 @@ const path = require("path");
 
 const root = path.join(__dirname, "..");
 const out = path.join(root, "www");
-const files = ["index.html", "styles.css", "game.js"];
+const files = ["index.html", "styles.css", "game.js", "privacy.html"];
 
 fs.mkdirSync(out, { recursive: true });
 

@@ -266,6 +266,25 @@ body.signed-in .auth-status {
   color: #ffd15c;
 }
 
+.legal-links {
+  grid-column: 2;
+  grid-row: 5;
+  align-self: end;
+  justify-self: end;
+  font-size: 12px;
+}
+
+.legal-links a {
+  color: #bdd2df;
+  text-decoration: none;
+}
+
+.legal-links a:focus,
+.legal-links a:hover {
+  color: #ffd15c;
+  text-decoration: underline;
+}
+
 .player-panel div,
 .hud div {
   min-height: 54px;
@@ -448,7 +467,8 @@ body.signed-in .auth-status {
   }
 
   .controls,
-  .leaderboard {
+  .leaderboard,
+  .legal-links {
     display: none;
   }
 

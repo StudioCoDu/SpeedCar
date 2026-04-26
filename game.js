@@ -33,6 +33,7 @@ const hudPanel = document.querySelector("#hudPanel");
 const controlsPanel = document.querySelector("#controlsPanel");
 const leaderboardPanel = document.querySelector("#leaderboardPanel");
 const mobileScoresSheet = document.querySelector("#mobileScoresSheet");
+const privacyLink = document.querySelector("#privacyLink");
 
 const road = {
   x: 92,
@@ -72,6 +73,16 @@ const TRAFFIC_CAR_HEIGHT = 76;
 const LEADERBOARD_REFRESH_MS = 4000;
 const SUPABASE_URL = "https://amrgkiicmvaamloutomd.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_bNXZ4iycEszTBEcDhjzt1A_nEzd7I3F";
+const ADS_CONFIG = {
+  enabled: true,
+  useTestAds: true,
+  showInterstitialEvery: 3,
+  minimumScoreForInterstitial: 20,
+  androidTestInterstitialId: "ca-app-pub-3940256099942544/1033173712",
+  androidTestRewardedId: "ca-app-pub-3940256099942544/5224354917",
+  interstitialAdId: "ca-app-pub-3940256099942544/1033173712",
+  rewardedAdId: "ca-app-pub-3940256099942544/5224354917",
+};
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     autoRefreshToken: true,
@@ -135,6 +146,7 @@ const translations = {
     authRemoteReady: "Shared leaderboard is on",
     authSharedError: "Shared leaderboard is not ready yet",
     authUsernameLocked: "Account name is locked while signed in",
+    privacyPolicy: "Privacy Policy",
   },
   he: {
     title: "speed car",
@@ -191,6 +203,7 @@ const translations = {
     authRemoteReady: "לוח השיאים המשותף פעיל",
     authSharedError: "לוח השיאים המשותף עוד לא מוכן",
     authUsernameLocked: "שם החשבון קבוע בזמן שמחוברים",
+    privacyPolicy: "מדיניות פרטיות",
   },
   ar: {
     title: "speed car",
@@ -527,9 +540,83 @@ let remoteReady = true;
 let authSyncPromise = Promise.resolve();
 let pendingRemoteScoreSave = Promise.resolve();
 let leaderboardRefreshPromise = Promise.resolve();
+let adsPlugin = null;
+let adsReady = false;
+let interstitialPrepared = false;
+let gamesFinishedSinceAd = 0;
+let adsSetupPromise = Promise.resolve(false);
 
 function t(key) {
   return translations[currentLanguage][key] ?? translations.en[key] ?? key;
+}
+
+function getNativeAdsPlugin() {
+  return window.Capacitor?.Plugins?.AdMob || null;
+}
+
+async function setupAds() {
+  if (!ADS_CONFIG.enabled) return false;
+  adsPlugin = getNativeAdsPlugin();
+  if (!adsPlugin) return false;
+
+  try {
+    await adsPlugin.initialize({
+      initializeForTesting: ADS_CONFIG.useTestAds,
+      tagForChildDirectedTreatment: true,
+      tagForUnderAgeOfConsent: true,
+      maxAdContentRating: "General",
+    });
+    adsReady = true;
+    await prepareInterstitialAd();
+    return true;
+  } catch (error) {
+    console.info("Ads are not ready yet", error);
+    adsReady = false;
+    return false;
+  }
+}
+
+function getInterstitialAdId() {
+  return ADS_CONFIG.useTestAds ? ADS_CONFIG.androidTestInterstitialId : ADS_CONFIG.interstitialAdId;
+}
+
+async function prepareInterstitialAd() {
+  if (!adsReady || !adsPlugin) return false;
+
+  try {
+    await adsPlugin.prepareInterstitial({
+      adId: getInterstitialAdId(),
+      isTesting: ADS_CONFIG.useTestAds,
+      npa: true,
+      immersiveMode: true,
+    });
+    interstitialPrepared = true;
+    return true;
+  } catch (error) {
+    console.info("Interstitial ad was not prepared", error);
+    interstitialPrepared = false;
+    return false;
+  }
+}
+
+async function maybeShowGameOverAd(finalScore) {
+  if (!adsReady || !adsPlugin || finalScore < ADS_CONFIG.minimumScoreForInterstitial) return;
+  gamesFinishedSinceAd += 1;
+  if (gamesFinishedSinceAd < ADS_CONFIG.showInterstitialEvery) return;
+
+  try {
+    if (!interstitialPrepared) {
+      await prepareInterstitialAd();
+    }
+    if (!interstitialPrepared) return;
+    await adsPlugin.showInterstitial();
+    gamesFinishedSinceAd = 0;
+    interstitialPrepared = false;
+  } catch (error) {
+    console.info("Interstitial ad was not shown", error);
+  } finally {
+    void prepareInterstitialAd();
+  }
 }
 
 function getAuthRedirectUrl() {
@@ -1032,6 +1119,7 @@ function applyLanguage(language, shouldSave = true) {
   mobileScoresButton.textContent = copy.scoresButton;
   document.querySelector("#mobileLeaderboardTitle").textContent = copy.leaderboard;
   closeScoresButton.textContent = copy.close;
+  privacyLink.textContent = copy.privacyPolicy ?? translations.en.privacyPolicy;
   languageSelect.value = currentLanguage;
   updateShieldDisplay();
   updateLeaderboard();
@@ -1603,11 +1691,14 @@ function rectanglesOverlap(a, b) {
 }
 
 function finishGame() {
+  if (gameOver) return;
+  const finalScore = Math.floor(score);
   gameOver = true;
   updatePlayLayout();
   shake = 16;
   createCrashSparks();
   newBestThisRun = saveScoreIfBest(true) || newBestThisRun;
+  void maybeShowGameOverAd(finalScore);
   if (newBestThisRun) {
     sparks.push({
       x: canvas.width / 2,
@@ -1985,6 +2076,7 @@ leaderboardScores = {};
 applyLanguage(getSavedLanguage(), false);
 setCurrentPlayer(getSavedPlayerName(), false);
 setAuthStatus(t("authLoading"));
+adsSetupPromise = setupAds();
 supabase.auth.onAuthStateChange((_event, session) => {
   queueAuthSync(session, playerNameInput.value);
 });

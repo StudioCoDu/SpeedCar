@@ -1,6 +1,6 @@
 {
   "appId": "com.ofek.race",
-  "appName": "speed car",
+  "appName": "Speed Car",
   "webDir": "www",
   "server": {
     "androidScheme": "https"
