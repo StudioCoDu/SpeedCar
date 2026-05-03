@@ -34,6 +34,12 @@ const controlsPanel = document.querySelector("#controlsPanel");
 const leaderboardPanel = document.querySelector("#leaderboardPanel");
 const mobileScoresSheet = document.querySelector("#mobileScoresSheet");
 const privacyLink = document.querySelector("#privacyLink");
+const homeScreen = document.querySelector("#homeScreen");
+const homePlayButton = document.querySelector("#homePlayButton");
+const homeScoresButton = document.querySelector("#homeScoresButton");
+const homePlayerNameEl = document.querySelector("#homePlayerName");
+const homeBestScoreEl = document.querySelector("#homeBestScore");
+const homeTopScoreEl = document.querySelector("#homeTopScore");
 
 const road = {
   x: 92,
@@ -147,6 +153,11 @@ const translations = {
     authSharedError: "Shared leaderboard is not ready yet",
     authUsernameLocked: "Account name is locked while signed in",
     privacyPolicy: "Privacy Policy",
+    home: "Home",
+    homeKicker: "Top-down racing",
+    homeSubtitle: "Dodge traffic, grab coins, and climb the shared leaderboard.",
+    play: "Play",
+    topScore: "Top Score",
   },
   he: {
     title: "speed car",
@@ -204,6 +215,11 @@ const translations = {
     authSharedError: "לוח השיאים המשותף עוד לא מוכן",
     authUsernameLocked: "שם החשבון קבוע בזמן שמחוברים",
     privacyPolicy: "מדיניות פרטיות",
+    home: "מסך בית",
+    homeKicker: "מרוץ מלמעלה",
+    homeSubtitle: "מתחמקים ממכוניות, אוספים מטבעות ומטפסים בלוח השיאים.",
+    play: "שחק",
+    topScore: "שיא מוביל",
   },
   ar: {
     title: "speed car",
@@ -535,6 +551,7 @@ let touchSteeringActive = false;
 let touchBrakeActive = false;
 let serverSaveAvailable = true;
 let currentLanguage = "en";
+let homeVisible = true;
 let authUser = null;
 let remoteReady = true;
 let authSyncPromise = Promise.resolve();
@@ -638,7 +655,20 @@ function setAuthStatus(message, tone = "") {
 }
 
 function updatePlayLayout() {
-  document.body.classList.toggle("playing", !gameOver);
+  document.body.classList.toggle("home", homeVisible);
+  document.body.classList.toggle("playing", !homeVisible && !gameOver);
+}
+
+function getTopLeaderboardScore() {
+  return Math.max(0, ...Object.values(leaderboardScores || {}).map((points) => Number(points) || 0));
+}
+
+function updateHomeStats() {
+  if (!homePlayerNameEl) return;
+
+  homePlayerNameEl.textContent = currentPlayer || t("defaultPlayer");
+  homeBestScoreEl.textContent = (authUser ? highScores[currentPlayer] || 0 : 0).toString();
+  homeTopScoreEl.textContent = getTopLeaderboardScore().toString();
 }
 
 function updatePlayerLockState() {
@@ -818,9 +848,11 @@ function updatePersonalBest() {
   if (!highScores || !currentPlayer) return;
   if (!authUser) {
     personalBestEl.textContent = "0";
+    updateHomeStats();
     return;
   }
   personalBestEl.textContent = (highScores[currentPlayer] || 0).toString();
+  updateHomeStats();
 }
 
 function updateLeaderboard() {
@@ -837,6 +869,7 @@ function updateLeaderboard() {
     empty.innerHTML = `<span class="name">${t("noScores")}</span><span class="points">0</span>`;
     leaderboardEl.append(empty);
     mobileLeaderboardEl.append(empty.cloneNode(true));
+    updateHomeStats();
     return;
   }
 
@@ -861,6 +894,7 @@ function updateLeaderboard() {
     mobileItem.append(mobilePlayer, mobileScore);
     mobileLeaderboardEl.append(mobileItem);
   });
+  updateHomeStats();
 }
 
 function setCurrentPlayer(name, shouldSave = true) {
@@ -869,6 +903,7 @@ function setCurrentPlayer(name, shouldSave = true) {
   if (shouldSave) saveGameData();
   updatePersonalBest();
   updateLeaderboard();
+  updateHomeStats();
 }
 
 function getSavedPlayerName() {
@@ -1088,6 +1123,7 @@ function applyLanguage(language, shouldSave = true) {
   document.documentElement.lang = copy.lang;
   document.documentElement.dir = copy.dir;
   document.title = copy.title;
+  homeScreen.setAttribute("aria-label", t("home"));
   authPanel.setAttribute("aria-label", copy.authPanel);
   playerPanel.setAttribute("aria-label", copy.playerPanel);
   hudPanel.setAttribute("aria-label", copy.hud);
@@ -1120,9 +1156,18 @@ function applyLanguage(language, shouldSave = true) {
   document.querySelector("#mobileLeaderboardTitle").textContent = copy.leaderboard;
   closeScoresButton.textContent = copy.close;
   privacyLink.textContent = copy.privacyPolicy ?? translations.en.privacyPolicy;
+  document.querySelector("#homeKicker").textContent = t("homeKicker");
+  document.querySelector("#homeTitle").textContent = copy.title;
+  document.querySelector("#homeSubtitle").textContent = t("homeSubtitle");
+  homePlayButton.textContent = t("play");
+  homeScoresButton.textContent = copy.leaderboard;
+  document.querySelector("#homePlayerLabel").textContent = copy.player;
+  document.querySelector("#homeBestLabel").textContent = copy.myBest;
+  document.querySelector("#homeTopLabel").textContent = t("topScore");
   languageSelect.value = currentLanguage;
   updateShieldDisplay();
   updateLeaderboard();
+  updateHomeStats();
   if (authUser) {
     setAuthStatus(`${t("authSignedIn")} ${currentPlayer}`, "success");
   } else if (remoteReady) {
@@ -1145,6 +1190,7 @@ function createSceneryItem(index) {
 }
 
 function resetGame() {
+  homeVisible = false;
   if (animationFrameId) cancelAnimationFrame(animationFrameId);
   const typedPlayer = cleanPlayerName(playerNameInput.value);
   if (typedPlayer !== currentPlayer) setCurrentPlayer(typedPlayer);
@@ -1187,6 +1233,30 @@ function resetGame() {
   updateSpeedFromScore();
   updateBrakeDisplay();
   animationFrameId = requestAnimationFrame(update);
+}
+
+function showHome() {
+  homeVisible = true;
+  gameOver = true;
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
+  score = 0;
+  speed = BASE_SPEED;
+  brakePower = MAX_BRAKE_POWER;
+  coinsCollected = 0;
+  shieldActive = false;
+  slowMotionTimer = 0;
+  touchSteeringActive = false;
+  touchBrakeActive = false;
+  scoreEl.textContent = "0";
+  coinsEl.textContent = "0";
+  updateSpeedFromScore();
+  updateBrakeDisplay();
+  updateShieldDisplay();
+  updateHomeStats();
+  updatePlayLayout();
 }
 
 function roundedRect(x, y, width, height, radius) {
@@ -1619,7 +1689,7 @@ function drawScene(currentSpeed = speed, delta = 0) {
     ctx.fillText(t("dragTip"), canvas.width / 2, canvas.height - 58);
   }
 
-  if (gameOver) {
+  if (gameOver && !homeVisible) {
     ctx.fillStyle = "rgba(13, 19, 24, 0.76)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#ffffff";
@@ -1931,10 +2001,18 @@ mobileScoresModal.addEventListener("click", (event) => {
     mobileScoresModal.hidden = true;
   }
 });
+homePlayButton.addEventListener("click", resetGame);
+homeScoresButton.addEventListener("click", () => {
+  if (matchMedia("(hover: none) and (pointer: coarse), (max-width: 768px)").matches) {
+    mobileScoresModal.hidden = false;
+    return;
+  }
+  leaderboardPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+});
 
 window.addEventListener("keydown", (event) => {
   keys.add(event.key);
-  if (event.key === "Enter" && gameOver) resetGame();
+  if (event.key === "Enter" && (gameOver || homeVisible)) resetGame();
 });
 
 window.addEventListener("keyup", (event) => {
@@ -2089,4 +2167,4 @@ supabase.auth.getSession().then(async ({ data, error }) => {
   await queueAuthSync(data.session, playerNameInput.value);
 });
 setInterval(refreshRemoteLeaderboard, LEADERBOARD_REFRESH_MS);
-resetGame();
+showHome();

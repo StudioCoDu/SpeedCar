@@ -8,6 +8,42 @@
   </head>
   <body>
     <main class="game-shell">
+      <section class="home-screen" id="homeScreen" aria-label="Home">
+        <div class="home-copy">
+          <p id="homeKicker">Top-down racing</p>
+          <h1 id="homeTitle">Speed Car</h1>
+          <p id="homeSubtitle">Dodge traffic, grab coins, and climb the shared leaderboard.</p>
+        </div>
+
+        <div class="home-actions">
+          <button id="homePlayButton" class="home-play-button" type="button">Play</button>
+          <button id="homeScoresButton" type="button">Leaderboard</button>
+        </div>
+
+        <div class="home-stats" aria-label="Player status">
+          <div>
+            <span id="homePlayerLabel">Player</span>
+            <strong id="homePlayerName">Player</strong>
+          </div>
+          <div>
+            <span id="homeBestLabel">My Best</span>
+            <strong id="homeBestScore">0</strong>
+          </div>
+          <div>
+            <span id="homeTopLabel">Top Score</span>
+            <strong id="homeTopScore">0</strong>
+          </div>
+        </div>
+
+        <div class="home-road" aria-hidden="true">
+          <div class="home-road-lane"></div>
+          <div class="home-road-lane"></div>
+          <div class="home-car home-car-player"></div>
+          <div class="home-car home-car-traffic"></div>
+          <div class="home-coin"></div>
+        </div>
+      </section>
+
       <section class="auth-panel" id="authPanel" aria-label="Account">
         <input id="authEmail" type="email" autocomplete="username" placeholder="Email">
         <input id="authPassword" type="password" autocomplete="current-password" placeholder="Password">
