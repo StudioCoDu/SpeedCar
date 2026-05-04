@@ -34,6 +34,8 @@ const controlsPanel = document.querySelector("#controlsPanel");
 const leaderboardPanel = document.querySelector("#leaderboardPanel");
 const mobileScoresSheet = document.querySelector("#mobileScoresSheet");
 const privacyLink = document.querySelector("#privacyLink");
+const splashScreen = document.querySelector("#splashScreen");
+const splashContinueButton = document.querySelector("#splashContinueButton");
 const homeScreen = document.querySelector("#homeScreen");
 const homePlayButton = document.querySelector("#homePlayButton");
 const homeScoresButton = document.querySelector("#homeScoresButton");
@@ -153,6 +155,10 @@ const translations = {
     authSharedError: "Shared leaderboard is not ready yet",
     authUsernameLocked: "Account name is locked while signed in",
     privacyPolicy: "Privacy Policy",
+    splash: "Opening screen",
+    splashKicker: "Street sprint",
+    splashSubtitle: "Fast traffic. One clean run. Beat the leaderboard.",
+    continue: "Continue",
     home: "Home",
     homeKicker: "Top-down racing",
     homeSubtitle: "Dodge traffic, grab coins, and climb the shared leaderboard.",
@@ -215,6 +221,10 @@ const translations = {
     authSharedError: "לוח השיאים המשותף עוד לא מוכן",
     authUsernameLocked: "שם החשבון קבוע בזמן שמחוברים",
     privacyPolicy: "מדיניות פרטיות",
+    splash: "מסך פתיחה",
+    splashKicker: "מרוץ רחוב",
+    splashSubtitle: "תנועה מהירה. נסיעה אחת נקייה. שוברים את לוח השיאים.",
+    continue: "המשך",
     home: "מסך בית",
     homeKicker: "מרוץ מלמעלה",
     homeSubtitle: "מתחמקים ממכוניות, אוספים מטבעות ומטפסים בלוח השיאים.",
@@ -551,7 +561,8 @@ let touchSteeringActive = false;
 let touchBrakeActive = false;
 let serverSaveAvailable = true;
 let currentLanguage = "en";
-let homeVisible = true;
+let splashVisible = true;
+let homeVisible = false;
 let authUser = null;
 let remoteReady = true;
 let authSyncPromise = Promise.resolve();
@@ -655,8 +666,10 @@ function setAuthStatus(message, tone = "") {
 }
 
 function updatePlayLayout() {
+  document.body.classList.toggle("splash", splashVisible);
   document.body.classList.toggle("home", homeVisible);
   document.body.classList.toggle("playing", !homeVisible && !gameOver);
+  splashScreen.hidden = !splashVisible;
 }
 
 function getTopLeaderboardScore() {
@@ -1123,6 +1136,7 @@ function applyLanguage(language, shouldSave = true) {
   document.documentElement.lang = copy.lang;
   document.documentElement.dir = copy.dir;
   document.title = copy.title;
+  splashScreen.setAttribute("aria-label", t("splash"));
   homeScreen.setAttribute("aria-label", t("home"));
   authPanel.setAttribute("aria-label", copy.authPanel);
   playerPanel.setAttribute("aria-label", copy.playerPanel);
@@ -1156,6 +1170,10 @@ function applyLanguage(language, shouldSave = true) {
   document.querySelector("#mobileLeaderboardTitle").textContent = copy.leaderboard;
   closeScoresButton.textContent = copy.close;
   privacyLink.textContent = copy.privacyPolicy ?? translations.en.privacyPolicy;
+  document.querySelector("#splashKicker").textContent = t("splashKicker");
+  document.querySelector("#splashTitle").textContent = copy.title;
+  document.querySelector("#splashSubtitle").textContent = t("splashSubtitle");
+  splashContinueButton.textContent = t("continue");
   document.querySelector("#homeKicker").textContent = t("homeKicker");
   document.querySelector("#homeTitle").textContent = copy.title;
   document.querySelector("#homeSubtitle").textContent = t("homeSubtitle");
@@ -1190,6 +1208,7 @@ function createSceneryItem(index) {
 }
 
 function resetGame() {
+  splashVisible = false;
   homeVisible = false;
   if (animationFrameId) cancelAnimationFrame(animationFrameId);
   const typedPlayer = cleanPlayerName(playerNameInput.value);
@@ -1236,6 +1255,7 @@ function resetGame() {
 }
 
 function showHome() {
+  splashVisible = false;
   homeVisible = true;
   gameOver = true;
   if (animationFrameId) {
@@ -1255,6 +1275,18 @@ function showHome() {
   updateSpeedFromScore();
   updateBrakeDisplay();
   updateShieldDisplay();
+  updateHomeStats();
+  updatePlayLayout();
+}
+
+function showSplash() {
+  splashVisible = true;
+  homeVisible = false;
+  gameOver = true;
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
   updateHomeStats();
   updatePlayLayout();
 }
@@ -2001,6 +2033,12 @@ mobileScoresModal.addEventListener("click", (event) => {
     mobileScoresModal.hidden = true;
   }
 });
+splashContinueButton.addEventListener("click", showHome);
+splashScreen.addEventListener("click", (event) => {
+  if (event.target === splashScreen || event.target.classList.contains("splash-road")) {
+    showHome();
+  }
+});
 homePlayButton.addEventListener("click", resetGame);
 homeScoresButton.addEventListener("click", () => {
   if (matchMedia("(hover: none) and (pointer: coarse), (max-width: 768px)").matches) {
@@ -2012,6 +2050,10 @@ homeScoresButton.addEventListener("click", () => {
 
 window.addEventListener("keydown", (event) => {
   keys.add(event.key);
+  if (event.key === "Enter" && splashVisible) {
+    showHome();
+    return;
+  }
   if (event.key === "Enter" && (gameOver || homeVisible)) resetGame();
 });
 
@@ -2167,4 +2209,4 @@ supabase.auth.getSession().then(async ({ data, error }) => {
   await queueAuthSync(data.session, playerNameInput.value);
 });
 setInterval(refreshRemoteLeaderboard, LEADERBOARD_REFRESH_MS);
-showHome();
+showSplash();
